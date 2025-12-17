@@ -343,9 +343,11 @@ public class AnthropicMapper {
                 .map(toolSpecification -> {
                     boolean isLastItem = toolSpecification.equals(lastToolSpecification);
                     if (isLastItem && cacheToolsPrompt != AnthropicCacheType.NO_CACHE) {
-                        return toAnthropicTool(toolSpecification, cacheToolsPrompt, toolMetadataKeysToSend, strictTools);
+                        return toAnthropicTool(
+                                toolSpecification, cacheToolsPrompt, toolMetadataKeysToSend, strictTools);
                     }
-                    return toAnthropicTool(toolSpecification, AnthropicCacheType.NO_CACHE, toolMetadataKeysToSend, strictTools);
+                    return toAnthropicTool(
+                            toolSpecification, AnthropicCacheType.NO_CACHE, toolMetadataKeysToSend, strictTools);
                 })
                 .collect(toList());
     }
@@ -362,7 +364,7 @@ public class AnthropicMapper {
             Boolean strictTools) {
         JsonObjectSchema parameters = toolSpecification.parameters();
 
-        //prevent NPE during unboxing
+        // prevent NPE during unboxing
         boolean strict = Boolean.TRUE.equals(strictTools);
 
         AnthropicTool.Builder toolBuilder = AnthropicTool.builder()
@@ -422,11 +424,7 @@ public class AnthropicMapper {
             }
 
             Map<String, Map<String, Object>> properties = new LinkedHashMap<>();
-            objectSchema
-                    .properties()
-                    .forEach((property, value) -> properties.put(
-                            property,
-                            toAnthropicSchema(value)));
+            objectSchema.properties().forEach((property, value) -> properties.put(property, toAnthropicSchema(value)));
             map.put("properties", properties);
 
             if (objectSchema.required() != null) {

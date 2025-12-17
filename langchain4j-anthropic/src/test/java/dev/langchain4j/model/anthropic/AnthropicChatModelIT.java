@@ -759,7 +759,8 @@ class AnthropicChatModelIT {
     @Test
     void should_send_strict_true_in_tools_definition() {
         // given
-        SpyingHttpClient spyingHttpClient = new SpyingHttpClient(JdkHttpClient.builder().build());
+        SpyingHttpClient spyingHttpClient =
+                new SpyingHttpClient(JdkHttpClient.builder().build());
 
         ChatModel model = AnthropicChatModel.builder()
                 .httpClientBuilder(new MockHttpClientBuilder(spyingHttpClient))
@@ -768,7 +769,7 @@ class AnthropicChatModelIT {
                 .temperature(0.0)
                 .toolChoice(ToolChoice.REQUIRED)
                 .disableParallelToolUse(true)
-                //when
+                // when
                 .beta("structured-outputs-2025-11-13")
                 .strictTools(true)
                 .logRequests(true)
@@ -785,9 +786,8 @@ class AnthropicChatModelIT {
                 .build();
 
         ChatRequest chatRequest = ChatRequest.builder()
-                .messages(UserMessage.from(
-                        "What's the weather in Munich? " +
-                                "When calling tools, include a parameter unit='celsius' in the tool input."))
+                .messages(UserMessage.from("What's the weather in Munich? "
+                        + "When calling tools, include a parameter unit='celsius' in the tool input."))
                 .toolSpecifications(weatherTool)
                 .build();
 
@@ -809,11 +809,8 @@ class AnthropicChatModelIT {
         ToolExecutionRequest call = toolCalls.get(0);
         assertThat(call.name()).isEqualTo("get_weather");
 
-        assertThat(call.arguments())
-                .contains("\"location\"")
-                .doesNotContain("\"unit\"");
+        assertThat(call.arguments()).contains("\"location\"").doesNotContain("\"unit\"");
     }
-
 
     static String randomString(int length) {
         String characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";

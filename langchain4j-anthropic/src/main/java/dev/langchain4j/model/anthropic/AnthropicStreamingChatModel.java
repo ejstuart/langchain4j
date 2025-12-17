@@ -125,7 +125,7 @@ public class AnthropicStreamingChatModel implements StreamingChatModel {
         this.toolMetadataKeysToSend = copy(builder.toolMetadataKeysToSend);
         this.userId = builder.userId;
         this.customParameters = copy(builder.customParameters);
-        this.strictTools= builder.strictTools;
+        this.strictTools = builder.strictTools;
         this.supportedCapabilities = copy(builder.supportedCapabilities);
     }
 

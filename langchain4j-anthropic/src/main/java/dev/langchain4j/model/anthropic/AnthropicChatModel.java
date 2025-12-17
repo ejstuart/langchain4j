@@ -112,7 +112,7 @@ public class AnthropicChatModel implements ChatModel {
         this.toolMetadataKeysToSend = copy(builder.toolMetadataKeysToSend);
         this.userId = builder.userId;
         this.customParameters = copy(builder.customParameters);
-        this.strictTools= builder.strictTools;
+        this.strictTools = builder.strictTools;
         this.supportedCapabilities = copy(builder.supportedCapabilities);
 
         ChatRequestParameters commonParameters;
@@ -280,7 +280,7 @@ public class AnthropicChatModel implements ChatModel {
          *     .build();
          * </pre>
          */
-        public  AnthropicChatModelBuilder serverTools(List<AnthropicServerTool> serverTools) {
+        public AnthropicChatModelBuilder serverTools(List<AnthropicServerTool> serverTools) {
             this.serverTools = serverTools;
             return this;
         }
@@ -296,7 +296,7 @@ public class AnthropicChatModel implements ChatModel {
          *     .build();
          * </pre>
          */
-        public  AnthropicChatModelBuilder serverTools(AnthropicServerTool... serverTools) {
+        public AnthropicChatModelBuilder serverTools(AnthropicServerTool... serverTools) {
             return serverTools(asList(serverTools));
         }
 
