@@ -2,7 +2,9 @@ package dev.langchain4j.model.anthropic;
 
 import static dev.langchain4j.model.anthropic.internal.api.AnthropicRole.ASSISTANT;
 import static dev.langchain4j.model.anthropic.internal.api.AnthropicRole.USER;
+import static dev.langchain4j.model.anthropic.internal.mapper.AnthropicMapper.SERVER_TOOL_RESULTS_KEY;
 import static dev.langchain4j.model.anthropic.internal.mapper.AnthropicMapper.retainKeys;
+import static dev.langchain4j.model.anthropic.internal.mapper.AnthropicMapper.toAiMessage;
 import static dev.langchain4j.model.anthropic.internal.mapper.AnthropicMapper.toAnthropicMessages;
 import static dev.langchain4j.model.anthropic.internal.mapper.AnthropicMapper.toAnthropicTool;
 import static java.util.Arrays.asList;
@@ -22,7 +24,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Stream;
-
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -249,7 +250,53 @@ class AnthropicMapperTest {
         assertThat(retainKeys(Map.of(), Set.of())).isEqualTo(Map.of());
         assertThat(retainKeys(Map.of("one", "one"), Set.of("one"))).isEqualTo(Map.of("one", "one"));
         assertThat(retainKeys(Map.of("one", "one"), Set.of("two"))).isEqualTo(Map.of());
-        assertThat(retainKeys(Map.of("one", "one", "two", "two"), Set.of("one"))).isEqualTo(Map.of("one", "one"));
+        assertThat(retainKeys(Map.of("one", "one", "two", "two"), Set.of("one")))
+                .isEqualTo(Map.of("one", "one"));
+    }
+
+    @Test
+    void should_extract_server_tool_results_when_enabled() {
+        // given
+        AnthropicContent textContent = new AnthropicContent();
+        textContent.type = "text";
+        textContent.text = "Here are the search results";
+
+        AnthropicContent webSearchResult = new AnthropicContent();
+        webSearchResult.type = "web_search_tool_result";
+        webSearchResult.toolUseId = "srvtoolu_123";
+        webSearchResult.content = List.of(Map.of(
+                "type", "web_search_result",
+                "url", "https://example.com",
+                "title", "Example"));
+
+        List<AnthropicContent> contents = List.of(textContent, webSearchResult);
+
+        // when
+        AiMessage aiMessage = toAiMessage(contents, false, true);
+
+        // then
+        assertThat(aiMessage.text()).isEqualTo("Here are the search results");
+
+        List<AnthropicServerToolResult> results = aiMessage.attribute(SERVER_TOOL_RESULTS_KEY, List.class);
+        assertThat(results).hasSize(1);
+        assertThat(results.get(0).type()).isEqualTo("web_search_tool_result");
+        assertThat(results.get(0).toolUseId()).isEqualTo("srvtoolu_123");
+        assertThat(results.get(0).content()).isNotNull();
+    }
+
+    @Test
+    void should_not_extract_server_tool_results_when_disabled() {
+        // given
+        AnthropicContent webSearchResult = new AnthropicContent();
+        webSearchResult.type = "web_search_tool_result";
+        webSearchResult.toolUseId = "srvtoolu_123";
+        webSearchResult.content = List.of(Map.of("url", "https://example.com"));
+
+        // when
+        AiMessage aiMessage = toAiMessage(List.of(webSearchResult), false, false);
+
+        // then
+        assertThat(aiMessage.attributes()).doesNotContainKey(SERVER_TOOL_RESULTS_KEY);
     }
 
     @SafeVarargs
