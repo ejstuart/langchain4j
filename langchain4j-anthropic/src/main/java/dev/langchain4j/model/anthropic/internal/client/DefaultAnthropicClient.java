@@ -3,6 +3,7 @@ package dev.langchain4j.model.anthropic.internal.client;
 import dev.langchain4j.Internal;
 import dev.langchain4j.http.client.sse.ServerSentEventContext;
 import dev.langchain4j.model.anthropic.AnthropicChatResponseMetadata;
+import dev.langchain4j.model.anthropic.AnthropicServerToolResult;
 import dev.langchain4j.model.anthropic.internal.api.AnthropicCountTokensRequest;
 import dev.langchain4j.http.client.sse.CancellationUnsupportedHandle;
 import dev.langchain4j.model.chat.response.CompleteToolCall;
@@ -59,6 +60,7 @@ import static dev.langchain4j.internal.ValidationUtils.ensureNotBlank;
 import static dev.langchain4j.model.anthropic.internal.client.Json.fromJson;
 import static dev.langchain4j.model.anthropic.internal.client.Json.toJson;
 import static dev.langchain4j.model.anthropic.internal.mapper.AnthropicMapper.REDACTED_THINKING_KEY;
+import static dev.langchain4j.model.anthropic.internal.mapper.AnthropicMapper.SERVER_TOOL_RESULTS_KEY;
 import static dev.langchain4j.model.anthropic.internal.mapper.AnthropicMapper.THINKING_SIGNATURE_KEY;
 import static dev.langchain4j.model.anthropic.internal.mapper.AnthropicMapper.toFinishReason;
 import static java.util.Collections.synchronizedList;
@@ -136,6 +138,8 @@ public class DefaultAnthropicClient extends AnthropicClient {
             final StringBuffer thinkingBuilder = new StringBuffer();
             final List<String> thinkingSignatures = synchronizedList(new ArrayList<>());
             final List<String> redactedThinkings = synchronizedList(new ArrayList<>());
+
+            final List<AnthropicServerToolResult> serverToolResults = synchronizedList(new ArrayList<>());
 
             volatile String currentContentBlockStartType;
 
@@ -255,7 +259,17 @@ public class DefaultAnthropicClient extends AnthropicClient {
                     toolCallBuilder.updateIndex(toolCallBuilder.index() + 1);
                     toolCallBuilder.updateId(data.contentBlock.id);
                     toolCallBuilder.updateName(data.contentBlock.name);
+                } else if (isServerToolResultType(currentContentBlockStartType) && options.returnServerToolResults()) {
+                    serverToolResults.add(AnthropicServerToolResult.builder()
+                            .type(data.contentBlock.type)
+                            .toolUseId(data.contentBlock.toolUseId)
+                            .content(data.contentBlock.content)
+                            .build());
                 }
+            }
+
+            private boolean isServerToolResultType(String type) {
+                return type != null && type.endsWith("_tool_result");
             }
 
             private void handleContentBlockDelta(AnthropicStreamingData data, StreamingHandle streamingHandle) {
@@ -360,6 +374,9 @@ public class DefaultAnthropicClient extends AnthropicClient {
                 }
                 if (!redactedThinkings.isEmpty()) {
                     attributes.put(REDACTED_THINKING_KEY, redactedThinkings);
+                }
+                if (!serverToolResults.isEmpty()) {
+                    attributes.put(SERVER_TOOL_RESULTS_KEY, serverToolResults);
                 }
 
                 List<ToolExecutionRequest> toolExecutionRequests = List.of();

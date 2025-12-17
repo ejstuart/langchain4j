@@ -30,4 +30,8 @@ public class AnthropicContent {
 
     // when type = "redacted_thinking"
     public String data;
+
+    // when type = "web_search_tool_result" or "code_execution_tool_result"
+    public String toolUseId;
+    public Object content; // Raw content from API - type varies by tool
 }
