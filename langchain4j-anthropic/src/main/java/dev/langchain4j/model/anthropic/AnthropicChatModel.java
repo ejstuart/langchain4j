@@ -26,19 +26,22 @@ import dev.langchain4j.model.anthropic.internal.api.AnthropicCreateMessageRespon
 import dev.langchain4j.model.anthropic.internal.api.AnthropicThinking;
 import dev.langchain4j.model.anthropic.internal.client.AnthropicClient;
 import dev.langchain4j.model.anthropic.internal.client.ParsedAndRawResponse;
+import dev.langchain4j.model.chat.Capability;
 import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.model.chat.listener.ChatModelListener;
 import dev.langchain4j.model.chat.request.ChatRequest;
 import dev.langchain4j.model.chat.request.ChatRequestParameters;
 import dev.langchain4j.model.chat.request.DefaultChatRequestParameters;
+import dev.langchain4j.model.chat.request.ResponseFormat;
 import dev.langchain4j.model.chat.request.ToolChoice;
 import dev.langchain4j.model.chat.response.ChatResponse;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 
 /**
@@ -78,6 +81,8 @@ public class AnthropicChatModel implements ChatModel {
     private final Set<String> toolMetadataKeysToSend;
     private final String userId;
     private final Map<String, Object> customParameters;
+    private final Boolean strictTools;
+    private final Set<Capability> supportedCapabilities;
 
     public AnthropicChatModel(AnthropicChatModelBuilder builder) {
         this.client = AnthropicClient.builder()
@@ -107,6 +112,8 @@ public class AnthropicChatModel implements ChatModel {
         this.toolMetadataKeysToSend = copy(builder.toolMetadataKeysToSend);
         this.userId = builder.userId;
         this.customParameters = copy(builder.customParameters);
+        this.strictTools= builder.strictTools;
+        this.supportedCapabilities = copy(builder.supportedCapabilities);
 
         ChatRequestParameters commonParameters;
         if (builder.defaultRequestParameters != null) {
@@ -126,6 +133,7 @@ public class AnthropicChatModel implements ChatModel {
                 .stopSequences(getOrDefault(builder.stopSequences, commonParameters.stopSequences()))
                 .toolSpecifications(getOrDefault(builder.toolSpecifications, commonParameters.toolSpecifications()))
                 .toolChoice(getOrDefault(builder.toolChoice, commonParameters.toolChoice()))
+                .responseFormat(getOrDefault(builder.responseFormat, commonParameters.responseFormat()))
                 .build();
     }
 
@@ -146,6 +154,7 @@ public class AnthropicChatModel implements ChatModel {
         private Integer topK;
         private Integer maxTokens;
         private List<String> stopSequences;
+        private ResponseFormat responseFormat;
         private List<ToolSpecification> toolSpecifications;
         private ToolChoice toolChoice;
         private String toolChoiceName;
@@ -168,6 +177,8 @@ public class AnthropicChatModel implements ChatModel {
         private ChatRequestParameters defaultRequestParameters;
         private String userId;
         private Map<String, Object> customParameters;
+        private Boolean strictTools;
+        private Set<Capability> supportedCapabilities;
 
         public AnthropicChatModelBuilder httpClientBuilder(HttpClientBuilder httpClientBuilder) {
             this.httpClientBuilder = httpClientBuilder;
@@ -226,6 +237,11 @@ public class AnthropicChatModel implements ChatModel {
 
         public AnthropicChatModelBuilder stopSequences(List<String> stopSequences) {
             this.stopSequences = stopSequences;
+            return this;
+        }
+
+        public AnthropicChatModelBuilder responseFormat(ResponseFormat responseFormat) {
+            this.responseFormat = responseFormat;
             return this;
         }
 
@@ -433,6 +449,21 @@ public class AnthropicChatModel implements ChatModel {
             return this;
         }
 
+        public AnthropicChatModelBuilder strictTools(Boolean strictTools) {
+            this.strictTools = strictTools;
+            return this;
+        }
+
+        public AnthropicChatModelBuilder supportedCapabilities(Capability... supportedCapabilities) {
+            this.supportedCapabilities = Arrays.stream(supportedCapabilities).collect(Collectors.toSet());
+            return this;
+        }
+
+        public AnthropicChatModelBuilder supportedCapabilities(Set<Capability> supportedCapabilities) {
+            this.supportedCapabilities = supportedCapabilities;
+            return this;
+        }
+
         public AnthropicChatModel build() {
             return new AnthropicChatModel(this);
         }
@@ -454,7 +485,8 @@ public class AnthropicChatModel implements ChatModel {
                 serverTools,
                 toolMetadataKeysToSend,
                 userId,
-                customParameters);
+                customParameters,
+                strictTools);
 
         ParsedAndRawResponse response =
                 withRetryMappingExceptions(() -> client.createMessageWithRawResponse(anthropicRequest), maxRetries);
@@ -501,5 +533,10 @@ public class AnthropicChatModel implements ChatModel {
     @Override
     public ChatRequestParameters defaultRequestParameters() {
         return defaultRequestParameters;
+    }
+
+    @Override
+    public Set<Capability> supportedCapabilities() {
+        return supportedCapabilities;
     }
 }

@@ -113,15 +113,9 @@ public class DefaultAnthropicClient extends AnthropicClient {
 
     @Override
     public AnthropicCreateMessageResponse createMessage(AnthropicCreateMessageRequest request) {
-        return createMessageWithRawResponse(request).parsedResponse();
-    }
-
-    @Override
-    public ParsedAndRawResponse createMessageWithRawResponse(AnthropicCreateMessageRequest request) {
         HttpRequest httpRequest = toHttpRequest(toJson(request), "messages");
-        SuccessfulHttpResponse rawResponse = httpClient.execute(httpRequest);
-        AnthropicCreateMessageResponse parsedResponse = fromJson(rawResponse.body(), AnthropicCreateMessageResponse.class);
-        return new ParsedAndRawResponse(parsedResponse, rawResponse);
+        SuccessfulHttpResponse successfulHttpResponse = httpClient.execute(httpRequest);
+        return fromJson(successfulHttpResponse.body(), AnthropicCreateMessageResponse.class);
     }
 
     @Override
@@ -139,8 +133,6 @@ public class DefaultAnthropicClient extends AnthropicClient {
             final List<String> thinkingSignatures = synchronizedList(new ArrayList<>());
             final List<String> redactedThinkings = synchronizedList(new ArrayList<>());
 
-            final List<AnthropicServerToolResult> serverToolResults = synchronizedList(new ArrayList<>());
-
             volatile String currentContentBlockStartType;
 
             final ToolCallBuilder toolCallBuilder = new ToolCallBuilder(-1);
@@ -156,14 +148,6 @@ public class DefaultAnthropicClient extends AnthropicClient {
 
             volatile String stopReason;
             volatile StreamingHandle streamingHandle;
-
-            final AtomicReference<SuccessfulHttpResponse> rawHttpResponse = new AtomicReference<>();
-            final Queue<ServerSentEvent> rawServerSentEvents = new ConcurrentLinkedQueue<>();
-
-            @Override
-            public void onOpen(SuccessfulHttpResponse response) {
-                rawHttpResponse.set(response);
-            }
 
             @Override
             public void onEvent(ServerSentEvent event) {
@@ -193,8 +177,6 @@ public class DefaultAnthropicClient extends AnthropicClient {
                 } else if ("error".equals(event.event())) {
                     handleError(event.data());
                 }
-
-                rawServerSentEvents.add(event);
             }
 
             private void handleMessageStart(AnthropicStreamingData data) {
@@ -259,17 +241,7 @@ public class DefaultAnthropicClient extends AnthropicClient {
                     toolCallBuilder.updateIndex(toolCallBuilder.index() + 1);
                     toolCallBuilder.updateId(data.contentBlock.id);
                     toolCallBuilder.updateName(data.contentBlock.name);
-                } else if (isServerToolResultType(currentContentBlockStartType) && options.returnServerToolResults()) {
-                    serverToolResults.add(AnthropicServerToolResult.builder()
-                            .type(data.contentBlock.type)
-                            .toolUseId(data.contentBlock.toolUseId)
-                            .content(data.contentBlock.content)
-                            .build());
                 }
-            }
-
-            private boolean isServerToolResultType(String type) {
-                return type != null && type.endsWith("_tool_result");
             }
 
             private void handleContentBlockDelta(AnthropicStreamingData data, StreamingHandle streamingHandle) {
@@ -375,9 +347,6 @@ public class DefaultAnthropicClient extends AnthropicClient {
                 if (!redactedThinkings.isEmpty()) {
                     attributes.put(REDACTED_THINKING_KEY, redactedThinkings);
                 }
-                if (!serverToolResults.isEmpty()) {
-                    attributes.put(SERVER_TOOL_RESULTS_KEY, serverToolResults);
-                }
 
                 List<ToolExecutionRequest> toolExecutionRequests = List.of();
                 if (toolCallBuilder.hasRequests()) {
@@ -409,7 +378,7 @@ public class DefaultAnthropicClient extends AnthropicClient {
             }
 
             private ChatResponseMetadata createMetadata(AnthropicTokenUsage tokenUsage, FinishReason finishReason) {
-                var metadataBuilder = AnthropicChatResponseMetadata.builder();
+                var metadataBuilder = ChatResponseMetadata.builder();
                 if (responseId.get() != null) {
                     metadataBuilder.id(responseId.get());
                 }
@@ -421,12 +390,6 @@ public class DefaultAnthropicClient extends AnthropicClient {
                 }
                 if (finishReason != null) {
                     metadataBuilder.finishReason(finishReason);
-                }
-                if (rawHttpResponse.get() != null) {
-                    metadataBuilder.rawHttpResponse(rawHttpResponse.get());
-                }
-                if (!rawServerSentEvents.isEmpty()) {
-                    metadataBuilder.rawServerSentEvents(new ArrayList<>(rawServerSentEvents));
                 }
                 return metadataBuilder.build();
             }
